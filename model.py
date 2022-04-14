@@ -184,8 +184,6 @@ class SlowFastNet(nn.Module):
     def forward(self, x):
         slow_input = x[:, :, ::self.slow_tao, :, :]
         fast_input = x[:, :, ::self.fast_tao, :, :]
-        print(slow_input.size())
-        print(fast_input.size())
         fast_result, fast_features = self.fast_path(fast_input)
         slow_result = self.slow_path(slow_input, fast_features)
         slow_global_pool = self.avg_pool(slow_result).view((x.size()[0], -1))
