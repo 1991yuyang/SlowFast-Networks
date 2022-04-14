@@ -171,7 +171,7 @@ class SlowFastNet(nn.Module):
 
         :param num_classes: 类别数目
         :param slow_tao: slowpath的帧采样步长
-        :param alpha: fastpath帧采样步长与slowpath的帧采样步长的比值
+        :param alpha: slowpath的帧采样步长与fastpath帧采样步长的比值
         """
         super(SlowFastNet, self).__init__()
         self.slow_tao = slow_tao
@@ -184,6 +184,8 @@ class SlowFastNet(nn.Module):
     def forward(self, x):
         slow_input = x[:, :, ::self.slow_tao, :, :]
         fast_input = x[:, :, ::self.fast_tao, :, :]
+        print(slow_input.size())
+        print(fast_input.size())
         fast_result, fast_features = self.fast_path(fast_input)
         slow_result = self.slow_path(slow_input, fast_features)
         slow_global_pool = self.avg_pool(slow_result).view((x.size()[0], -1))
@@ -195,7 +197,7 @@ class SlowFastNet(nn.Module):
 
 if __name__ == "__main__":
     d = t.randn(2, 3, 64, 224, 224)
-    model = SlowFastNet(num_classes=10, slow_tao=32, alpha=16)
+    model = SlowFastNet(num_classes=10, slow_tao=16, alpha=8)
     out = model(d)
     print(out.size())
 
