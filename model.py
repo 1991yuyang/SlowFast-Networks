@@ -112,13 +112,8 @@ def make_layer(bottle_neck_count, is_half, in_channels, out_channels, is_fastpat
 
 class SlowPath(nn.Module):
 
-    def __init__(self, alpha):
-        """
-
-        :param alpha: 帧采样步长
-        """
+    def __init__(self):
         super(SlowPath, self).__init__()
-        self.alpha = alpha
         self.conv1 = nn.Sequential(
             nn.Conv3d(in_channels=3, out_channels=64, kernel_size=(1, 7, 7), stride=(1, 2, 2), padding=(0, 3, 3), bias=False),
             nn.BatchNorm3d(num_features=64),
@@ -129,27 +124,25 @@ class SlowPath(nn.Module):
         self.layer2 = make_layer(4, True, in_channels=256, out_channels=512, is_fastpath=False)
         self.layer3 = make_layer(6, True, in_channels=512, out_channels=1024, is_fastpath=False)
         self.layer4 = make_layer(3, True, in_channels=1024, out_channels=2048, is_fastpath=False)
+        self.fusion_pool = nn.Conv3d(in_channels=8, out_channels=64, kernel_size=(5, 1, 1), stride=(8, 1, 1), padding=(2, 0, 0))
+        self.fusion_layer1 = nn.Conv3d(in_channels=32, out_channels=256, kernel_size=(5, 1, 1), stride=(8, 1, 1), padding=(2, 0, 0))
+        self.fusion_layer2 = nn.Conv3d(in_channels=64, out_channels=512, kernel_size=(5, 1, 1), stride=(8, 1, 1), padding=(2, 0, 0))
+        self.fusion_layer3 = nn.Conv3d(in_channels=128, out_channels=1024, kernel_size=(5, 1, 1), stride=(8, 1, 1), padding=(2, 0, 0))
 
-    def forward(self, x):
-        tempral_downsample = x[:, :, ::self.alpha, :, :]
-        conv1_result = self.conv1(tempral_downsample)
+    def forward(self, x, fast_features):
+        conv1_result = self.conv1(x)
         pool_result = self.pool1(conv1_result)
-        layer1_result = self.layer1(pool_result)
-        layer2_result = self.layer2(layer1_result)
-        layer3_result = self.layer3(layer2_result)
-        layer4_result = self.layer4(layer3_result)
+        layer1_result = self.layer1(pool_result + self.fusion_pool(fast_features[0]))
+        layer2_result = self.layer2(layer1_result + self.fusion_layer1(fast_features[1]))
+        layer3_result = self.layer3(layer2_result + self.fusion_layer2(fast_features[2]))
+        layer4_result = self.layer4(layer3_result + self.fusion_layer3(fast_features[3]))
         return layer4_result
 
 
 class FastPath(nn.Module):
 
-    def __init__(self, alpha):
-        """
-
-        :param alpha: 帧采样步长
-        """
+    def __init__(self):
         super(FastPath, self).__init__()
-        self.alpha = alpha
         self.conv1 = nn.Sequential(
             nn.Conv3d(in_channels=3, out_channels=8, kernel_size=(5, 7, 7), stride=(1, 2, 2), padding=(2, 3, 3), bias=False),
             nn.BatchNorm3d(num_features=8),
@@ -162,36 +155,47 @@ class FastPath(nn.Module):
         self.layer4 = make_layer(3, True, in_channels=128, out_channels=256, is_fastpath=True)
 
     def forward(self, x):
-        tempral_downsample = x[:, :, ::self.alpha, :, :]
-        conv1_result = self.conv1(tempral_downsample)
+        conv1_result = self.conv1(x)
         pool_result = self.pool1(conv1_result)
         layer1_result = self.layer1(pool_result)
         layer2_result = self.layer2(layer1_result)
         layer3_result = self.layer3(layer2_result)
         layer4_result = self.layer4(layer3_result)
-        return layer4_result
+        return layer4_result, [pool_result, layer1_result, layer2_result, layer3_result]
 
 
 class SlowFastNet(nn.Module):
 
-    def __init__(self, num_classes, slow_alpha, fast_alpha):
+    def __init__(self, num_classes, slow_tao):
         """
 
         :param num_classes: 类别数目
-        :param slow_alpha: slowpath的帧采样步长
-        :param fast_alpha: fastpath的帧采样步长
+        :param slow_tao: slowpath的帧采样步长
         """
         super(SlowFastNet, self).__init__()
-        self.slow_path = SlowPath(slow_alpha)
-        self.fast_path = FastPath(fast_alpha)
+        self.slow_tao = slow_tao
+        self.fast_tao = slow_tao // 8
+        self.slow_path = SlowPath()
+        self.fast_path = FastPath()
+        self.avg_pool = nn.AdaptiveAvgPool3d(output_size=1)
+        self.clsf = nn.Linear(in_features=256 + 2048, out_features=num_classes)
 
     def forward(self, x):
-        pass
+        slow_input = x[:, :, ::self.slow_tao, :, :]
+        fast_input = x[:, :, ::self.fast_tao, :, :]
+        fast_result, fast_features = self.fast_path(fast_input)
+        slow_result = self.slow_path(slow_input, fast_features)
+        slow_global_pool = self.avg_pool(slow_result).view((x.size()[0], -1))
+        fast_global_pool = self.avg_pool(fast_result).view((x.size()[0], -1))
+        cat_result = t.cat([slow_global_pool, fast_global_pool], dim=1)
+        result = self.clsf(cat_result)
+        return result
 
 
 if __name__ == "__main__":
     d = t.randn(2, 3, 64, 224, 224)
-    model = FastPath(alpha=2)
+    model = SlowFastNet(num_classes=10, slow_tao=32)
     out = model(d)
     print(out.size())
+
 
