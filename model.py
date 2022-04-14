@@ -112,7 +112,7 @@ def make_layer(bottle_neck_count, is_half, in_channels, out_channels, is_fastpat
 
 class SlowPath(nn.Module):
 
-    def __init__(self):
+    def __init__(self, alpha):
         super(SlowPath, self).__init__()
         self.conv1 = nn.Sequential(
             nn.Conv3d(in_channels=3, out_channels=64, kernel_size=(1, 7, 7), stride=(1, 2, 2), padding=(0, 3, 3), bias=False),
@@ -124,10 +124,10 @@ class SlowPath(nn.Module):
         self.layer2 = make_layer(4, True, in_channels=256, out_channels=512, is_fastpath=False)
         self.layer3 = make_layer(6, True, in_channels=512, out_channels=1024, is_fastpath=False)
         self.layer4 = make_layer(3, True, in_channels=1024, out_channels=2048, is_fastpath=False)
-        self.fusion_pool = nn.Conv3d(in_channels=8, out_channels=64, kernel_size=(5, 1, 1), stride=(8, 1, 1), padding=(2, 0, 0))
-        self.fusion_layer1 = nn.Conv3d(in_channels=32, out_channels=256, kernel_size=(5, 1, 1), stride=(8, 1, 1), padding=(2, 0, 0))
-        self.fusion_layer2 = nn.Conv3d(in_channels=64, out_channels=512, kernel_size=(5, 1, 1), stride=(8, 1, 1), padding=(2, 0, 0))
-        self.fusion_layer3 = nn.Conv3d(in_channels=128, out_channels=1024, kernel_size=(5, 1, 1), stride=(8, 1, 1), padding=(2, 0, 0))
+        self.fusion_pool = nn.Conv3d(in_channels=8, out_channels=64, kernel_size=(5, 1, 1), stride=(alpha, 1, 1), padding=(2, 0, 0))
+        self.fusion_layer1 = nn.Conv3d(in_channels=32, out_channels=256, kernel_size=(5, 1, 1), stride=(alpha, 1, 1), padding=(2, 0, 0))
+        self.fusion_layer2 = nn.Conv3d(in_channels=64, out_channels=512, kernel_size=(5, 1, 1), stride=(alpha, 1, 1), padding=(2, 0, 0))
+        self.fusion_layer3 = nn.Conv3d(in_channels=128, out_channels=1024, kernel_size=(5, 1, 1), stride=(alpha, 1, 1), padding=(2, 0, 0))
 
     def forward(self, x, fast_features):
         conv1_result = self.conv1(x)
@@ -166,16 +166,17 @@ class FastPath(nn.Module):
 
 class SlowFastNet(nn.Module):
 
-    def __init__(self, num_classes, slow_tao):
+    def __init__(self, num_classes, slow_tao, alpha):
         """
 
         :param num_classes: 类别数目
         :param slow_tao: slowpath的帧采样步长
+        :param alpha: fastpath帧采样步长与slowpath的帧采样步长的比值
         """
         super(SlowFastNet, self).__init__()
         self.slow_tao = slow_tao
-        self.fast_tao = slow_tao // 8
-        self.slow_path = SlowPath()
+        self.fast_tao = slow_tao // alpha
+        self.slow_path = SlowPath(alpha)
         self.fast_path = FastPath()
         self.avg_pool = nn.AdaptiveAvgPool3d(output_size=1)
         self.clsf = nn.Linear(in_features=256 + 2048, out_features=num_classes)
@@ -194,7 +195,7 @@ class SlowFastNet(nn.Module):
 
 if __name__ == "__main__":
     d = t.randn(2, 3, 64, 224, 224)
-    model = SlowFastNet(num_classes=10, slow_tao=32)
+    model = SlowFastNet(num_classes=10, slow_tao=32, alpha=16)
     out = model(d)
     print(out.size())
 
