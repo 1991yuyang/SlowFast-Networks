@@ -54,14 +54,14 @@ class BottleNeck(nn.Module):
     3x3
     """
 
-    def __init__(self, in_channels, out_channels, is_half, is_fastpath):
+    def __init__(self, in_channels, out_channels, is_half, is_temproal_conv):
         super(BottleNeck, self).__init__()
         if is_half:
             stride = [[1, 1, 1], [1, 2, 2], [1, 1, 1]]
         else:
             stride = [[1, 1, 1], [1, 1, 1], [1, 1, 1]]
         middle_channels = out_channels // 4
-        if not is_fastpath:
+        if not is_temproal_conv:
             self.block = nn.Sequential(
                 Conv1X1X1(in_channels=in_channels, out_channels=middle_channels, stride=stride[0], padding=(0, 0, 0), is_relu=False),
                 Conv1X3X3(in_channels=middle_channels, out_channels=middle_channels, stride=stride[1], padding=(0, 1, 1), is_relu=False),
@@ -85,14 +85,14 @@ class BottleNeck(nn.Module):
         return result
 
 
-def make_layer(bottle_neck_count, is_half, in_channels, out_channels, is_fastpath):
+def make_layer(bottle_neck_count, is_half, in_channels, out_channels, is_temproal_conv):
     """
     多个bottle_neck组合模块
     :param bottle_neck_count: bottle_neck的数目
     :param is_half: 模块输出空间尺寸是否缩小一半
     :param in_channels: 第一个bottle_neck的输入channels
     :param out_channels: 第一个bottle_neck的输出channels
-    :param is_fastpath: 是否是FastPath
+    :param is_temproal_conv: 是否进行时间维度卷积（True:卷积核时间维度尺寸为3,False:卷积核时间维度尺寸为1）
     :return:
     """
     if is_half:
@@ -106,7 +106,7 @@ def make_layer(bottle_neck_count, is_half, in_channels, out_channels, is_fastpat
         in_channels = in_channelses[i]
         out_channels = out_channelses[i]
         is_half = is_halfs[i]
-        block.add_module("%d" % (i,), BottleNeck(in_channels, out_channels, is_half, is_fastpath))
+        block.add_module("%d" % (i,), BottleNeck(in_channels, out_channels, is_half, is_temproal_conv))
     return block
 
 
@@ -120,10 +120,10 @@ class SlowPath(nn.Module):
             nn.ReLU()
         )
         self.pool1 = nn.MaxPool3d(kernel_size=(1, 3, 3), stride=(1, 2, 2), padding=(0, 1, 1))
-        self.layer1 = make_layer(3, False, in_channels=64, out_channels=256, is_fastpath=False)
-        self.layer2 = make_layer(4, True, in_channels=256, out_channels=512, is_fastpath=False)
-        self.layer3 = make_layer(6, True, in_channels=512, out_channels=1024, is_fastpath=False)
-        self.layer4 = make_layer(3, True, in_channels=1024, out_channels=2048, is_fastpath=False)
+        self.layer1 = make_layer(3, False, in_channels=64, out_channels=256, is_temproal_conv=False)
+        self.layer2 = make_layer(4, True, in_channels=256, out_channels=512, is_temproal_conv=False)
+        self.layer3 = make_layer(6, True, in_channels=512, out_channels=1024, is_temproal_conv=True)
+        self.layer4 = make_layer(3, True, in_channels=1024, out_channels=2048, is_temproal_conv=True)
         self.fusion_pool = nn.Conv3d(in_channels=8, out_channels=64, kernel_size=(5, 1, 1), stride=(alpha, 1, 1), padding=(2, 0, 0))
         self.fusion_layer1 = nn.Conv3d(in_channels=32, out_channels=256, kernel_size=(5, 1, 1), stride=(alpha, 1, 1), padding=(2, 0, 0))
         self.fusion_layer2 = nn.Conv3d(in_channels=64, out_channels=512, kernel_size=(5, 1, 1), stride=(alpha, 1, 1), padding=(2, 0, 0))
@@ -149,10 +149,10 @@ class FastPath(nn.Module):
             nn.ReLU()
         )
         self.pool1 = nn.MaxPool3d(kernel_size=(1, 3, 3), stride=(1, 2, 2), padding=(0, 1, 1))
-        self.layer1 = make_layer(3, False, in_channels=8, out_channels=32, is_fastpath=True)
-        self.layer2 = make_layer(4, True, in_channels=32, out_channels=64, is_fastpath=True)
-        self.layer3 = make_layer(6, True, in_channels=64, out_channels=128, is_fastpath=True)
-        self.layer4 = make_layer(3, True, in_channels=128, out_channels=256, is_fastpath=True)
+        self.layer1 = make_layer(3, False, in_channels=8, out_channels=32, is_temproal_conv=True)
+        self.layer2 = make_layer(4, True, in_channels=32, out_channels=64, is_temproal_conv=True)
+        self.layer3 = make_layer(6, True, in_channels=64, out_channels=128, is_temproal_conv=True)
+        self.layer4 = make_layer(3, True, in_channels=128, out_channels=256, is_temproal_conv=True)
 
     def forward(self, x):
         conv1_result = self.conv1(x)
