@@ -182,6 +182,7 @@ class SlowFastNet(nn.Module):
         self.clsf = nn.Linear(in_features=256 + 2048, out_features=num_classes)
 
     def forward(self, x):
+        assert x.size()[2] >= self.slow_tao, "传入数据时间维度长度至少为slowpath帧采样步长"
         slow_input = x[:, :, ::self.slow_tao, :, :]
         fast_input = x[:, :, ::self.fast_tao, :, :]
         fast_result, fast_features = self.fast_path(fast_input)
@@ -194,7 +195,7 @@ class SlowFastNet(nn.Module):
 
 
 if __name__ == "__main__":
-    d = t.randn(2, 3, 64, 224, 224)
+    d = t.randn(2, 3, 16, 224, 224)
     model = SlowFastNet(num_classes=10, slow_tao=16, alpha=8)
     out = model(d)
     print(out.size())
