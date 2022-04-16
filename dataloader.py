@@ -55,7 +55,6 @@ class MySet(data.Dataset):
     def load_one_video(self, video_pth):
         cap = cv2.VideoCapture(video_pth)
         frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-        frame_repeat_count = int(np.ceil(self.clip_len / frame_count))
         frame_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
         frame_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
         short_side_size = rd.randint(*self.short_side_size_range)
@@ -78,8 +77,7 @@ class MySet(data.Dataset):
             # 3.如果是训练则随机进行翻转
             if self.is_train and is_flip:
                 frame = cv2.flip(frame, 1)
-            for rep in range(frame_repeat_count):
-                buffers.append(frame)
+            buffers.append(frame)
         buffers = np.array(buffers)
         # 4.图像裁剪
         crop_h_start = rd.randint(new_height - self.crop_size[0])
@@ -94,9 +92,11 @@ class MySet(data.Dataset):
         return d
 
     def tempral_clip(self, buffers):
-        sample_step = int(buffers.shape[0] / self.clip_len)
-        buffers = buffers[::sample_step, :, :, :]
-        buffers = buffers[:self.clip_len, :, :, :]
+        if buffers.shape[0] < self.clip_len:
+            repeat_times = int(np.ceil(self.clip_len / buffers.shape[0]))
+            buffers = np.concatenate([buffers] * repeat_times, axis=0)
+        clip_start = rd.randint(buffers.shape[0] - self.clip_len)
+        buffers = buffers[clip_start:clip_start + self.clip_len, :, :, :]
         return buffers
 
     def cvt_buffer_to_tensor(self, buffers):
