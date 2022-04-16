@@ -4,12 +4,21 @@ from torch import nn
 
 class Conv3X1X1(nn.Module):
 
-    def __init__(self, in_channels, out_channels, stride, padding, is_relu):
+    def __init__(self, in_channels, out_channels, stride, padding, is_relu, is_group_conv):
         super(Conv3X1X1, self).__init__()
-        self.block = nn.Sequential(
-            nn.Conv3d(in_channels=in_channels, out_channels=out_channels, kernel_size=(3, 1, 1), stride=stride, padding=padding, bias=False),
-            nn.BatchNorm3d(num_features=out_channels)
-        )
+        if is_group_conv and (in_channels % out_channels == 0 or out_channels % in_channels == 0):
+            groups = min(in_channels, out_channels)
+            self.block = nn.Sequential(
+                nn.Conv3d(in_channels=in_channels, out_channels=out_channels, kernel_size=(3, 1, 1), stride=stride, padding=padding, bias=True, groups=groups),
+                nn.ReLU(),
+                nn.Conv3d(in_channels=out_channels, out_channels=out_channels, kernel_size=(1, 1, 1), stride=(1, 1, 1), padding=(0, 0, 0), bias=False),
+                nn.BatchNorm3d(num_features=out_channels)
+            )
+        else:
+            self.block = nn.Sequential(
+                nn.Conv3d(in_channels=in_channels, out_channels=out_channels, kernel_size=(3, 1, 1), stride=stride, padding=padding, bias=False),
+                nn.BatchNorm3d(num_features=out_channels)
+            )
         if is_relu:
             self.block.add_module("relu", nn.ReLU())
 
@@ -34,12 +43,21 @@ class Conv1X1X1(nn.Module):
 
 class Conv1X3X3(nn.Module):
 
-    def __init__(self, in_channels, out_channels, stride, padding, is_relu):
+    def __init__(self, in_channels, out_channels, stride, padding, is_relu, is_group_conv):
         super(Conv1X3X3, self).__init__()
-        self.block = nn.Sequential(
-            nn.Conv3d(in_channels=in_channels, out_channels=out_channels, kernel_size=(1, 3, 3), stride=stride, padding=padding, bias=False),
-            nn.BatchNorm3d(num_features=out_channels)
-        )
+        if is_group_conv and (out_channels % in_channels == 0 or in_channels % out_channels == 0):
+            groups = min(in_channels, out_channels)
+            self.block = nn.Sequential(
+                nn.Conv3d(in_channels=in_channels, out_channels=out_channels, kernel_size=(1, 3, 3), stride=stride, padding=padding, bias=True, groups=groups),
+                nn.ReLU(),
+                nn.Conv3d(in_channels=out_channels, out_channels=out_channels, kernel_size=(1, 1, 1), stride=(1, 1, 1), padding=(0, 0, 0), bias=False),
+                nn.BatchNorm3d(num_features=out_channels)
+            )
+        else:
+            self.block = nn.Sequential(
+                nn.Conv3d(in_channels=in_channels, out_channels=out_channels, kernel_size=(1, 3, 3), stride=stride, padding=padding, bias=False),
+                nn.BatchNorm3d(num_features=out_channels)
+            )
         if is_relu:
             self.block.add_module("relu", nn.ReLU())
 
@@ -54,7 +72,7 @@ class BottleNeck(nn.Module):
     3x3
     """
 
-    def __init__(self, in_channels, out_channels, is_half, is_temproal_conv):
+    def __init__(self, in_channels, out_channels, is_half, is_temproal_conv, is_group_conv):
         super(BottleNeck, self).__init__()
         if is_half:
             stride = [[1, 1, 1], [1, 2, 2], [1, 1, 1]]
@@ -64,13 +82,13 @@ class BottleNeck(nn.Module):
         if not is_temproal_conv:
             self.block = nn.Sequential(
                 Conv1X1X1(in_channels=in_channels, out_channels=middle_channels, stride=stride[0], padding=(0, 0, 0), is_relu=False),
-                Conv1X3X3(in_channels=middle_channels, out_channels=middle_channels, stride=stride[1], padding=(0, 1, 1), is_relu=False),
+                Conv1X3X3(in_channels=middle_channels, out_channels=middle_channels, stride=stride[1], padding=(0, 1, 1), is_relu=False, is_group_conv=is_group_conv),
                 Conv1X1X1(in_channels=middle_channels, out_channels=out_channels, stride=stride[2], padding=(0, 0, 0), is_relu=True)
             )
         else:
             self.block = nn.Sequential(
-                Conv3X1X1(in_channels=in_channels, out_channels=middle_channels, stride=stride[0], padding=(1, 0, 0), is_relu=False),
-                Conv1X3X3(in_channels=middle_channels, out_channels=middle_channels, stride=stride[1], padding=(0, 1, 1), is_relu=False),
+                Conv3X1X1(in_channels=in_channels, out_channels=middle_channels, stride=stride[0], padding=(1, 0, 0), is_relu=False, is_group_conv=is_group_conv),
+                Conv1X3X3(in_channels=middle_channels, out_channels=middle_channels, stride=stride[1], padding=(0, 1, 1), is_relu=False, is_group_conv=is_group_conv),
                 Conv1X1X1(in_channels=middle_channels, out_channels=out_channels, stride=stride[2], padding=(0, 0, 0), is_relu=True)
             )
         if in_channels != out_channels or is_half:
@@ -85,7 +103,7 @@ class BottleNeck(nn.Module):
         return result
 
 
-def make_layer(bottle_neck_count, is_half, in_channels, out_channels, is_temproal_conv):
+def make_layer(bottle_neck_count, is_half, in_channels, out_channels, is_temproal_conv, is_group_conv):
     """
     多个bottle_neck组合模块
     :param bottle_neck_count: bottle_neck的数目
@@ -93,6 +111,7 @@ def make_layer(bottle_neck_count, is_half, in_channels, out_channels, is_temproa
     :param in_channels: 第一个bottle_neck的输入channels
     :param out_channels: 第一个bottle_neck的输出channels
     :param is_temproal_conv: 是否进行时间维度卷积（True:卷积核时间维度尺寸为3,False:卷积核时间维度尺寸为1）
+    :param is_group_conv: 是否采用分组卷积
     :return:
     """
     if is_half:
@@ -106,13 +125,13 @@ def make_layer(bottle_neck_count, is_half, in_channels, out_channels, is_temproa
         in_channels = in_channelses[i]
         out_channels = out_channelses[i]
         is_half = is_halfs[i]
-        block.add_module("%d" % (i,), BottleNeck(in_channels, out_channels, is_half, is_temproal_conv))
+        block.add_module("%d" % (i,), BottleNeck(in_channels, out_channels, is_half, is_temproal_conv, is_group_conv))
     return block
 
 
 class SlowPath(nn.Module):
 
-    def __init__(self, alpha):
+    def __init__(self, alpha, is_group_conv):
         super(SlowPath, self).__init__()
         self.conv1 = nn.Sequential(
             nn.Conv3d(in_channels=3, out_channels=64, kernel_size=(1, 7, 7), stride=(1, 2, 2), padding=(0, 3, 3), bias=False),
@@ -120,14 +139,18 @@ class SlowPath(nn.Module):
             nn.ReLU()
         )
         self.pool1 = nn.MaxPool3d(kernel_size=(1, 3, 3), stride=(1, 2, 2), padding=(0, 1, 1))
-        self.layer1 = make_layer(3, False, in_channels=64, out_channels=256, is_temproal_conv=False)
-        self.layer2 = make_layer(4, True, in_channels=256, out_channels=512, is_temproal_conv=False)
-        self.layer3 = make_layer(6, True, in_channels=512, out_channels=1024, is_temproal_conv=True)
-        self.layer4 = make_layer(3, True, in_channels=1024, out_channels=2048, is_temproal_conv=True)
-        self.fusion_pool = nn.Conv3d(in_channels=8, out_channels=64, kernel_size=(5, 1, 1), stride=(alpha, 1, 1), padding=(2, 0, 0))
-        self.fusion_layer1 = nn.Conv3d(in_channels=32, out_channels=256, kernel_size=(5, 1, 1), stride=(alpha, 1, 1), padding=(2, 0, 0))
-        self.fusion_layer2 = nn.Conv3d(in_channels=64, out_channels=512, kernel_size=(5, 1, 1), stride=(alpha, 1, 1), padding=(2, 0, 0))
-        self.fusion_layer3 = nn.Conv3d(in_channels=128, out_channels=1024, kernel_size=(5, 1, 1), stride=(alpha, 1, 1), padding=(2, 0, 0))
+        self.layer1 = make_layer(3, False, in_channels=64, out_channels=256, is_temproal_conv=False, is_group_conv=is_group_conv)
+        self.layer2 = make_layer(4, True, in_channels=256, out_channels=512, is_temproal_conv=False, is_group_conv=is_group_conv)
+        self.layer3 = make_layer(6, True, in_channels=512, out_channels=1024, is_temproal_conv=True, is_group_conv=is_group_conv)
+        self.layer4 = make_layer(3, True, in_channels=1024, out_channels=2048, is_temproal_conv=True, is_group_conv=is_group_conv)
+        if is_group_conv:
+            groups = [8, 32, 64, 128]
+        else:
+            groups = [1, 1, 1, 1]
+        self.fusion_pool = nn.Conv3d(in_channels=8, out_channels=64, kernel_size=(5, 1, 1), stride=(alpha, 1, 1), padding=(2, 0, 0), groups=groups[0])
+        self.fusion_layer1 = nn.Conv3d(in_channels=32, out_channels=256, kernel_size=(5, 1, 1), stride=(alpha, 1, 1), padding=(2, 0, 0), groups=groups[1])
+        self.fusion_layer2 = nn.Conv3d(in_channels=64, out_channels=512, kernel_size=(5, 1, 1), stride=(alpha, 1, 1), padding=(2, 0, 0), groups=groups[2])
+        self.fusion_layer3 = nn.Conv3d(in_channels=128, out_channels=1024, kernel_size=(5, 1, 1), stride=(alpha, 1, 1), padding=(2, 0, 0), groups=groups[3])
 
     def forward(self, x, fast_features):
         conv1_result = self.conv1(x)
@@ -141,7 +164,7 @@ class SlowPath(nn.Module):
 
 class FastPath(nn.Module):
 
-    def __init__(self):
+    def __init__(self, is_group_conv):
         super(FastPath, self).__init__()
         self.conv1 = nn.Sequential(
             nn.Conv3d(in_channels=3, out_channels=8, kernel_size=(5, 7, 7), stride=(1, 2, 2), padding=(2, 3, 3), bias=False),
@@ -149,10 +172,10 @@ class FastPath(nn.Module):
             nn.ReLU()
         )
         self.pool1 = nn.MaxPool3d(kernel_size=(1, 3, 3), stride=(1, 2, 2), padding=(0, 1, 1))
-        self.layer1 = make_layer(3, False, in_channels=8, out_channels=32, is_temproal_conv=True)
-        self.layer2 = make_layer(4, True, in_channels=32, out_channels=64, is_temproal_conv=True)
-        self.layer3 = make_layer(6, True, in_channels=64, out_channels=128, is_temproal_conv=True)
-        self.layer4 = make_layer(3, True, in_channels=128, out_channels=256, is_temproal_conv=True)
+        self.layer1 = make_layer(3, False, in_channels=8, out_channels=32, is_temproal_conv=True, is_group_conv=is_group_conv)
+        self.layer2 = make_layer(4, True, in_channels=32, out_channels=64, is_temproal_conv=True, is_group_conv=is_group_conv)
+        self.layer3 = make_layer(6, True, in_channels=64, out_channels=128, is_temproal_conv=True, is_group_conv=is_group_conv)
+        self.layer4 = make_layer(3, True, in_channels=128, out_channels=256, is_temproal_conv=True, is_group_conv=is_group_conv)
 
     def forward(self, x):
         conv1_result = self.conv1(x)
@@ -166,18 +189,19 @@ class FastPath(nn.Module):
 
 class SlowFastNet(nn.Module):
 
-    def __init__(self, num_classes, slow_tao, alpha):
+    def __init__(self, num_classes, slow_tao, alpha, is_group_conv):
         """
 
         :param num_classes: 类别数目
         :param slow_tao: slowpath的帧采样步长
         :param alpha: slowpath的帧采样步长与fastpath帧采样步长的比值
+        :param is_group_conv: 是否采用分组卷积
         """
         super(SlowFastNet, self).__init__()
         self.slow_tao = slow_tao
         self.fast_tao = slow_tao // alpha
-        self.slow_path = SlowPath(alpha)
-        self.fast_path = FastPath()
+        self.slow_path = SlowPath(alpha, is_group_conv)
+        self.fast_path = FastPath(is_group_conv)
         self.avg_pool = nn.AdaptiveAvgPool3d(output_size=1)
         self.clsf = nn.Linear(in_features=256 + 2048, out_features=num_classes)
 
@@ -196,8 +220,7 @@ class SlowFastNet(nn.Module):
 
 if __name__ == "__main__":
     d = t.randn(2, 3, 16, 224, 224)
-    model = SlowFastNet(num_classes=10, slow_tao=16, alpha=8)
+    model = SlowFastNet(num_classes=10, slow_tao=16, alpha=8, is_group_conv=True)
     out = model(d)
     print(out.size())
-
 

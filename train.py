@@ -9,13 +9,13 @@ device_ids = [int(i) for i in CUDA_VISIBLE_DEVICES.split(",")]
 
 
 epoch = 40
-batch_size = 4
+batch_size = 8
 init_lr = 0.001
 lr_de_rate = 0.1
 lr_de_epoch = 10
 train_data_root_dir = r"/home/yuyang/data/ucf101"
 valid_data_root_dir = r"/home/yuyang/data/ucf101"
-num_workers = 4
+num_workers = 8
 clip_len = 16
 slow_tao = 16
 alpha = 8
@@ -23,6 +23,7 @@ weight_decay = 0.00001
 short_side_size_range = [256, 320]
 crop_size = [224, 224]
 print_step = 2
+is_group_conv = True
 class_names = ["ApplyEyeMakeup", "ApplyLipstick", "Archery"]
 best_valid_loss = float("inf")
 num_classes = len(class_names)
@@ -82,7 +83,7 @@ def valid_epoch(current_epoch, criterion, valid_loader, model):
 
 
 def main():
-    model = SlowFastNet(num_classes=num_classes, slow_tao=slow_tao, alpha=alpha)
+    model = SlowFastNet(num_classes=num_classes, slow_tao=slow_tao, alpha=alpha, is_group_conv=is_group_conv)
     model = nn.DataParallel(module=model, device_ids=device_ids)
     model = model.cuda(device_ids[0])
     criterion = nn.CrossEntropyLoss().cuda(device_ids[0])
