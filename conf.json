@@ -26,6 +26,7 @@
     "clip_count": 10,
     "short_side_size": 256,
     "crop_size": 224,
-    "batch_size": 4
+    "batch_size": 4,
+    "use_best_model": true
   }
 }

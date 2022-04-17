@@ -4,7 +4,7 @@ from model import SlowFastNet
 import os
 from dataloader import make_loader
 import json
-conf = json.load(open("conf.json"))
+conf = json.load(open("conf.json", "r"))
 train_conf = conf["train"]
 common_conf = conf["common"]
 CUDA_VISIBLE_DEVICES = train_conf["CUDA_VISIBLE_DEVICES"]
