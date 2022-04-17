@@ -22,7 +22,7 @@
     "print_step": 2
   },
   "predict": {
-    "video_pth": "/home/yuyang/data/ucf101/Archery/v_Archery_g01_c04.avi",
+    "video_pth": "/home/yuyang/data/ucf101/Archery/v_Archery_g02_c07.avi",
     "clip_count": 10,
     "short_side_size": 256,
     "crop_size": [256 ,256],
