@@ -105,8 +105,26 @@ class MySet(data.Dataset):
         return d
 
 
+class PredictSet(data.Dataset):
+
+    def __init__(self, clips):
+        self.clips = clips
+
+    def __getitem__(self, index):
+        d = self.clips[index]
+        return d
+
+    def __len__(self):
+        return self.clips.shape[0]
+
+
 def make_loader(crop_size, short_side_size_range, clip_len, data_root, is_train, class_names, batch_size, num_workers):
     loader = iter(data.DataLoader(MySet(crop_size, short_side_size_range, clip_len, data_root, is_train, class_names), batch_size=batch_size, shuffle=True, drop_last=True, num_workers=num_workers))
+    return loader
+
+
+def make_predict_loader(clips, batch_size, num_workers):
+    loader = iter(data.DataLoader(PredictSet(clips=clips), batch_size=batch_size, shuffle=False, drop_last=False, num_workers=num_workers))
     return loader
 
 
