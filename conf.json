@@ -1,4 +1,11 @@
 {
+  "common": {
+    "clip_len": 16,
+    "slow_tao": 16,
+    "alpha": 8,
+    "is_group_conv": true,
+    "class_names": ["ApplyEyeMakeup", "ApplyLipstick", "Archery"]
+  },
   "train": {
     "epoch": 40,
     "batch_size": 8,
@@ -9,14 +16,16 @@
     "train_data_root_dir": "/home/yuyang/data/ucf101",
     "valid_data_root_dir": "/home/yuyang/data/ucf101",
     "num_workers": 4,
-    "clip_len": 16,
-    "slow_tao": 16,
-    "alpha": 8,
     "weight_decay": 0.00001,
     "short_side_size_range": [256, 320],
     "crop_size": [224, 224],
-    "print_step": 2,
-    "is_group_conv": false,
-    "class_names": ["ApplyEyeMakeup", "ApplyLipstick", "Archery"]
+    "print_step": 2
+  },
+  "predict": {
+    "video_pth": "",
+    "clip_count": 10,
+    "short_side_size": 256,
+    "crop_size": 224,
+    "batch_size": 4
   }
 }
