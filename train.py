@@ -3,28 +3,31 @@ from torch import nn, optim
 from model import SlowFastNet
 import os
 from dataloader import make_loader
-CUDA_VISIBLE_DEVICES = "0"
+import json
+conf = json.load(open("conf.json"))
+train_conf = conf["train"]
+CUDA_VISIBLE_DEVICES = train_conf["CUDA_VISIBLE_DEVICES"]
 os.environ["CUDA_VISIBLE_DEVICES"] = CUDA_VISIBLE_DEVICES
 device_ids = [int(i) for i in CUDA_VISIBLE_DEVICES.split(",")]
 
 
-epoch = 40
-batch_size = 8
-init_lr = 0.001
-lr_de_rate = 0.1
-lr_de_epoch = 10
-train_data_root_dir = r"/home/yuyang/data/ucf101"
-valid_data_root_dir = r"/home/yuyang/data/ucf101"
-num_workers = 8
-clip_len = 16
-slow_tao = 16
-alpha = 8
-weight_decay = 0.00001
-short_side_size_range = [256, 320]
-crop_size = [224, 224]
-print_step = 2
-is_group_conv = True
-class_names = ["ApplyEyeMakeup", "ApplyLipstick", "Archery"]
+epoch = train_conf["epoch"]
+batch_size = train_conf["batch_size"]
+init_lr = train_conf["init_lr"]
+lr_de_rate = train_conf["lr_de_rate"]
+lr_de_epoch = train_conf["lr_de_epoch"]
+train_data_root_dir = train_conf["train_data_root_dir"]
+valid_data_root_dir = train_conf["valid_data_root_dir"]
+num_workers = train_conf["num_workers"]
+clip_len = train_conf["clip_len"]
+slow_tao = train_conf["slow_tao"]
+alpha = train_conf["alpha"]
+weight_decay = train_conf["weight_decay"]
+short_side_size_range = train_conf["short_side_size_range"]
+crop_size = train_conf["crop_size"]
+print_step = train_conf["print_step"]
+is_group_conv = train_conf["is_group_conv"]
+class_names = train_conf["class_names"]
 best_valid_loss = float("inf")
 num_classes = len(class_names)
 softmax_op = nn.Softmax(dim=1)
