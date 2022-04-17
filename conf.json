@@ -28,6 +28,7 @@
     "crop_size": [256 ,256],
     "crop_times": 3,
     "batch_size": 4,
-    "use_best_model": true
+    "use_best_model": true,
+    "show_video": true
   }
 }

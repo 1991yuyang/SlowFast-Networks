@@ -80,6 +80,7 @@ class MySet(data.Dataset):
             buffers.append(frame)
         buffers = np.array(buffers)
         # 4.图像裁剪
+        assert np.all(np.array(self.crop_size) <= np.array((new_height, new_width))), "crop_size > resized_image_size, (%d,%d) > (%d,%d)" % (self.crop_size[0], self.crop_size[1], new_height, new_width)
         crop_h_start = rd.randint(new_height - self.crop_size[0])
         crop_w_start = rd.randint(new_width - self.crop_size[1])
         buffers = buffers[:, crop_h_start:crop_h_start + self.crop_size[0], crop_w_start:crop_w_start + self.crop_size[1], :]

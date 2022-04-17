@@ -26,6 +26,7 @@ crop_size = predict_conf["crop_size"]
 batch_size = predict_conf["batch_size"]
 use_best_model = predict_conf["use_best_model"]
 crop_times = predict_conf["crop_times"]
+show_video = predict_conf["show_video"]
 num_classes = len(class_names)
 softmax_op = nn.Softmax(dim=1)
 
@@ -68,9 +69,12 @@ def load_data():
         new_height = short_side_size
         resize_ratio = new_height / frame_height
         new_width = int(resize_ratio * frame_width)
+    assert np.all(np.array(crop_size) <= np.array((new_height, new_width))), "crop_size > resized_image_size, (%d,%d) > (%d,%d)" % (crop_size[0], crop_size[1], new_height, new_width)
     buffers = []  # 形状为，[D, H, W, C]
     for _ in range(frame_count):
         _, frame = cap.read()
+        if show_video and (cv2.waitKey(35) & 0xff != ord('q')):
+            cv2.imshow("frame", frame)
         # 1.视频帧转rgb
         frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         # 2.按照短边尺寸进行resize
@@ -105,9 +109,11 @@ def predict():
     softmax_results = t.cat(softmax_results, dim=0).mean(dim=0)
     predict_class_index = t.argmax(softmax_results)
     predict_class_name = class_names[predict_class_index]
-    return predict_class_name, predict_class_index
+    confidences = dict(zip(class_names, softmax_results.detach().cpu().numpy().tolist()))
+    return predict_class_name, predict_class_index, confidences
 
 
 if __name__ == "__main__":
-    predict_class_name, predict_class_index = predict()
-    print(predict_class_name)
+    predict_class_name, predict_class_index, confidences = predict()
+    print("confidence:", confidences)
+    print("action name:", predict_class_name)
