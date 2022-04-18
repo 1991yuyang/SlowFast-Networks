@@ -121,8 +121,11 @@ def load_data(video):
     return clips
 
 
-def predict(video_pth):
-    clips = load_data(video_pth)
+def predict(video):
+    """
+    param video: 可以填入视频路径，字符串格式；也可以填入帧流，ndarray格式，形状为[D, H, W, C]
+    """
+    clips = load_data(video)
     softmax_results = []
     predict_loader = make_predict_loader(clips, batch_size, num_workers)
     for d in predict_loader:
