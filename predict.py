@@ -27,6 +27,10 @@ batch_size = predict_conf["batch_size"]
 use_best_model = predict_conf["use_best_model"]
 crop_times = predict_conf["crop_times"]
 show_video = predict_conf["show_video"]
+use_camera = predict_conf["use_camera"]  # 是否使用摄像头实时预测
+predict_camera_frame_count = predict_conf["predict_camera_frame_count"]  # 使用相机实时预测时帧采样时间滑动窗口长度
+if use_camera:
+    show_video = False
 num_classes = len(class_names)
 softmax_op = nn.Softmax(dim=1)
 
@@ -121,7 +125,7 @@ def load_data(video):
     return clips
 
 
-def predict(video):
+def predict_video(video):
     """
     param video: 可以填入视频路径，字符串格式；也可以填入帧流，ndarray格式，形状为[D, H, W, C]
     """
@@ -141,7 +145,30 @@ def predict(video):
     return predict_class_name, predict_class_index, confidences
 
 
+def predict_cam():
+    cap = cv2.VideoCapture(0)
+    frame_list = []
+    while True:
+        ret, frame = cap.read()
+        frame_list.append(frame)
+        if len(frame_list) == predict_camera_frame_count:
+            predict_class_name, predict_class_index, confidences = predict_video(np.array(frame_list))
+            print(predict_class_name)
+        if len(frame_list) > predict_camera_frame_count:
+            frame_list.pop(0)
+            predict_class_name, predict_class_index, confidences = predict_video(np.array(frame_list))
+            print(predict_class_name)
+        cv2.imshow('frame', frame)
+        c = cv2.waitKey(1)
+        if c == ord('q'):
+            break
+    cap.release()
+
+
 if __name__ == "__main__":
-    predict_class_name, predict_class_index, confidences = predict(video_pth)
-    print("confidence:", confidences)
-    print("action name:", predict_class_name)
+    if use_camera:
+        predict_cam()
+    else:
+        predict_class_name, predict_class_index, confidences = predict_video(video_pth)
+        print("confidence:", confidences)
+        print("action name:", predict_class_name)

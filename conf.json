@@ -27,8 +27,10 @@
     "short_side_size": 256,
     "crop_size": [256 ,256],
     "crop_times": 3,
-    "batch_size": 4,
+    "batch_size": 10,
     "use_best_model": true,
-    "show_video": true
+    "show_video": true,
+    "predict_camera_frame_count": 20,
+    "use_camera": false
   }
 }
