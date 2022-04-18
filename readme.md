@@ -1,15 +1,15 @@
 # 一.数据集准备  
 数据格式与UCF-101相同如下:  
 train_data_root_dir:  
-&emsp class1  
-&emsp 1.avi  
-&emsp 2.avi  
-&emsp&emsp ...  
-&emspclass2  
-&emsp&emsp1.avi  
-&emsp&emsp2.avi
-&emsp&emsp...  
-&emsp...  
+&nbsp;&nbsp;&nbsp;&nbsp;class1  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;1.avi  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;2.avi  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;...  
+&nbsp;&nbsp;&nbsp;&nbsp;class2  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;1.avi  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;2.avi
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;...  
+&nbsp;&nbsp;&nbsp;&nbsp;...  
 验证集目录与训练集目录格式相同，class1，class2为类别名称，需与conf.json中的class_names保持一致  
   
 # 二.模型训练  
