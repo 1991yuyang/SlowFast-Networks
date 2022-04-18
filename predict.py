@@ -153,11 +153,14 @@ def predict_cam():
         frame_list.append(frame)
         if len(frame_list) == predict_camera_frame_count:
             predict_class_name, predict_class_index, confidences = predict_video(np.array(frame_list))
+            print(confidences)
             print(predict_class_name)
         if len(frame_list) > predict_camera_frame_count:
             frame_list.pop(0)
             predict_class_name, predict_class_index, confidences = predict_video(np.array(frame_list))
+            print(confidences)
             print(predict_class_name)
+        print("==============================================")
         cv2.imshow('frame', frame)
         c = cv2.waitKey(1)
         if c == ord('q'):
