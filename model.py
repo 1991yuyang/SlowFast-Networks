@@ -1,5 +1,6 @@
 import torch as t
 from torch import nn
+import numpy as np
 
 
 class Conv3X1X1(nn.Module):
@@ -131,26 +132,27 @@ def make_layer(bottle_neck_count, is_half, in_channels, out_channels, is_temproa
 
 class SlowPath(nn.Module):
 
-    def __init__(self, alpha, is_group_conv):
+    def __init__(self, alpha, is_group_conv, width_factor):
         super(SlowPath, self).__init__()
         self.conv1 = nn.Sequential(
-            nn.Conv3d(in_channels=3, out_channels=64, kernel_size=(1, 7, 7), stride=(1, 2, 2), padding=(0, 3, 3), bias=False),
-            nn.BatchNorm3d(num_features=64),
+            nn.Conv3d(in_channels=3, out_channels=int(64 * width_factor), kernel_size=(1, 7, 7), stride=(1, 2, 2), padding=(0, 3, 3), bias=False),
+            nn.BatchNorm3d(num_features=int(64 * width_factor)),
             nn.ReLU()
         )
+        out_channelses = (np.array([256, 512, 1024, 2048]) * width_factor).astype(int).tolist()
         self.pool1 = nn.MaxPool3d(kernel_size=(1, 3, 3), stride=(1, 2, 2), padding=(0, 1, 1))
-        self.layer1 = make_layer(3, False, in_channels=64, out_channels=256, is_temproal_conv=False, is_group_conv=is_group_conv)
-        self.layer2 = make_layer(4, True, in_channels=256, out_channels=512, is_temproal_conv=False, is_group_conv=is_group_conv)
-        self.layer3 = make_layer(6, True, in_channels=512, out_channels=1024, is_temproal_conv=True, is_group_conv=is_group_conv)
-        self.layer4 = make_layer(3, True, in_channels=1024, out_channels=2048, is_temproal_conv=True, is_group_conv=is_group_conv)
+        self.layer1 = make_layer(3, False, in_channels=int(64 * width_factor), out_channels=out_channelses[0], is_temproal_conv=False, is_group_conv=is_group_conv)
+        self.layer2 = make_layer(4, True, in_channels=out_channelses[0], out_channels=out_channelses[1], is_temproal_conv=False, is_group_conv=is_group_conv)
+        self.layer3 = make_layer(6, True, in_channels=out_channelses[1], out_channels=out_channelses[2], is_temproal_conv=True, is_group_conv=is_group_conv)
+        self.layer4 = make_layer(3, True, in_channels=out_channelses[2], out_channels=out_channelses[3], is_temproal_conv=True, is_group_conv=is_group_conv)
         if is_group_conv:
-            groups = [8, 32, 64, 128]
+            groups = [int(8 * width_factor), int(32 * width_factor), int(64 * width_factor), int(128 * width_factor)]
         else:
             groups = [1, 1, 1, 1]
-        self.fusion_pool = nn.Conv3d(in_channels=8, out_channels=64, kernel_size=(5, 1, 1), stride=(alpha, 1, 1), padding=(2, 0, 0), groups=groups[0])
-        self.fusion_layer1 = nn.Conv3d(in_channels=32, out_channels=256, kernel_size=(5, 1, 1), stride=(alpha, 1, 1), padding=(2, 0, 0), groups=groups[1])
-        self.fusion_layer2 = nn.Conv3d(in_channels=64, out_channels=512, kernel_size=(5, 1, 1), stride=(alpha, 1, 1), padding=(2, 0, 0), groups=groups[2])
-        self.fusion_layer3 = nn.Conv3d(in_channels=128, out_channels=1024, kernel_size=(5, 1, 1), stride=(alpha, 1, 1), padding=(2, 0, 0), groups=groups[3])
+        self.fusion_pool = nn.Conv3d(in_channels=int(8 * width_factor), out_channels=int(64 * width_factor), kernel_size=(5, 1, 1), stride=(alpha, 1, 1), padding=(2, 0, 0), groups=groups[0])
+        self.fusion_layer1 = nn.Conv3d(in_channels=int(32 * width_factor), out_channels=out_channelses[0], kernel_size=(5, 1, 1), stride=(alpha, 1, 1), padding=(2, 0, 0), groups=groups[1])
+        self.fusion_layer2 = nn.Conv3d(in_channels=int(64 * width_factor), out_channels=out_channelses[1], kernel_size=(5, 1, 1), stride=(alpha, 1, 1), padding=(2, 0, 0), groups=groups[2])
+        self.fusion_layer3 = nn.Conv3d(in_channels=int(128 * width_factor), out_channels=out_channelses[2], kernel_size=(5, 1, 1), stride=(alpha, 1, 1), padding=(2, 0, 0), groups=groups[3])
 
     def forward(self, x, fast_features):
         conv1_result = self.conv1(x)
@@ -164,18 +166,19 @@ class SlowPath(nn.Module):
 
 class FastPath(nn.Module):
 
-    def __init__(self, is_group_conv):
+    def __init__(self, is_group_conv, width_factor):
         super(FastPath, self).__init__()
         self.conv1 = nn.Sequential(
-            nn.Conv3d(in_channels=3, out_channels=8, kernel_size=(5, 7, 7), stride=(1, 2, 2), padding=(2, 3, 3), bias=False),
-            nn.BatchNorm3d(num_features=8),
+            nn.Conv3d(in_channels=3, out_channels=int(8 * width_factor), kernel_size=(5, 7, 7), stride=(1, 2, 2), padding=(2, 3, 3), bias=False),
+            nn.BatchNorm3d(num_features=int(8 * width_factor)),
             nn.ReLU()
         )
+        out_channelses = (np.array([32, 64, 128, 256]) * width_factor).astype(int).tolist()
         self.pool1 = nn.MaxPool3d(kernel_size=(1, 3, 3), stride=(1, 2, 2), padding=(0, 1, 1))
-        self.layer1 = make_layer(3, False, in_channels=8, out_channels=32, is_temproal_conv=True, is_group_conv=is_group_conv)
-        self.layer2 = make_layer(4, True, in_channels=32, out_channels=64, is_temproal_conv=True, is_group_conv=is_group_conv)
-        self.layer3 = make_layer(6, True, in_channels=64, out_channels=128, is_temproal_conv=True, is_group_conv=is_group_conv)
-        self.layer4 = make_layer(3, True, in_channels=128, out_channels=256, is_temproal_conv=True, is_group_conv=is_group_conv)
+        self.layer1 = make_layer(3, False, in_channels=int(8 * width_factor), out_channels=out_channelses[0], is_temproal_conv=True, is_group_conv=is_group_conv)
+        self.layer2 = make_layer(4, True, in_channels=out_channelses[0], out_channels=out_channelses[1], is_temproal_conv=True, is_group_conv=is_group_conv)
+        self.layer3 = make_layer(6, True, in_channels=out_channelses[1], out_channels=out_channelses[2], is_temproal_conv=True, is_group_conv=is_group_conv)
+        self.layer4 = make_layer(3, True, in_channels=out_channelses[2], out_channels=out_channelses[3], is_temproal_conv=True, is_group_conv=is_group_conv)
 
     def forward(self, x):
         conv1_result = self.conv1(x)
@@ -189,21 +192,23 @@ class FastPath(nn.Module):
 
 class SlowFastNet(nn.Module):
 
-    def __init__(self, num_classes, slow_tao, alpha, is_group_conv):
+    def __init__(self, num_classes, slow_tao, alpha, is_group_conv, width_factor):
         """
 
         :param num_classes: 类别数目
         :param slow_tao: slowpath的帧采样步长
         :param alpha: slowpath的帧采样步长与fastpath帧采样步长的比值
         :param is_group_conv: 是否采用分组卷积
+        :param width_factor: int类型，网络宽度缩放因子, 通道数缩小为原来的0.5 ** width_factor倍
         """
         super(SlowFastNet, self).__init__()
         self.slow_tao = slow_tao
         self.fast_tao = slow_tao // alpha
-        self.slow_path = SlowPath(alpha, is_group_conv)
-        self.fast_path = FastPath(is_group_conv)
+        width_factor = 0.5 ** width_factor
+        self.slow_path = SlowPath(alpha, is_group_conv, width_factor)
+        self.fast_path = FastPath(is_group_conv, width_factor)
         self.avg_pool = nn.AdaptiveAvgPool3d(output_size=1)
-        self.clsf = nn.Linear(in_features=256 + 2048, out_features=num_classes)
+        self.clsf = nn.Linear(in_features=int(256 * width_factor) + int(2048 * width_factor), out_features=num_classes)
 
     def forward(self, x):
         assert x.size()[2] >= self.slow_tao, "传入数据时间维度长度至少为slowpath帧采样步长"
@@ -220,7 +225,7 @@ class SlowFastNet(nn.Module):
 
 if __name__ == "__main__":
     d = t.randn(2, 3, 16, 224, 224)
-    model = SlowFastNet(num_classes=10, slow_tao=16, alpha=8, is_group_conv=True)
+    model = SlowFastNet(num_classes=10, slow_tao=16, alpha=8, is_group_conv=True, width_factor=0)
     out = model(d)
     print(out.size())
 

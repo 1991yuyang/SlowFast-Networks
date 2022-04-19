@@ -19,6 +19,7 @@ alpha = common_conf["alpha"]
 is_group_conv = common_conf["is_group_conv"]
 class_names = common_conf["class_names"]
 num_workers = common_conf["num_workers"]
+width_factor = common_conf["width_factor"]
 video_pth = predict_conf["video_pth"]
 clip_count = predict_conf["clip_count"]
 short_side_size = predict_conf["short_side_size"]
@@ -30,13 +31,15 @@ show_video = predict_conf["show_video"]
 use_camera = predict_conf["use_camera"]  # 是否使用摄像头实时预测
 predict_camera_frame_count = predict_conf["predict_camera_frame_count"]  # 使用相机实时预测时帧采样时间滑动窗口长度
 if use_camera:
+    clip_count = int(np.ceil(clip_count / 5))
+    crop_times = int(np.ceil(crop_times / 5))
     show_video = False
 num_classes = len(class_names)
 softmax_op = nn.Softmax(dim=1)
 
 
 def load_model():
-    model = SlowFastNet(num_classes=num_classes, slow_tao=slow_tao, alpha=alpha, is_group_conv=is_group_conv)
+    model = SlowFastNet(num_classes=num_classes, slow_tao=slow_tao, alpha=alpha, is_group_conv=is_group_conv, width_factor=width_factor)
     model = nn.DataParallel(module=model, device_ids=[0])
     if use_best_model:
         model.load_state_dict(t.load("best.pth"))

@@ -23,6 +23,7 @@ num_workers = common_conf["num_workers"]
 clip_len = common_conf["clip_len"]
 slow_tao = common_conf["slow_tao"]
 alpha = common_conf["alpha"]
+width_factor = common_conf["width_factor"]
 weight_decay = train_conf["weight_decay"]
 short_side_size_range = train_conf["short_side_size_range"]
 crop_size = train_conf["crop_size"]
@@ -87,7 +88,7 @@ def valid_epoch(current_epoch, criterion, valid_loader, model):
 
 
 def main():
-    model = SlowFastNet(num_classes=num_classes, slow_tao=slow_tao, alpha=alpha, is_group_conv=is_group_conv)
+    model = SlowFastNet(num_classes=num_classes, slow_tao=slow_tao, alpha=alpha, is_group_conv=is_group_conv, width_factor=width_factor)
     model = nn.DataParallel(module=model, device_ids=device_ids)
     model = model.cuda(device_ids[0])
     criterion = nn.CrossEntropyLoss().cuda(device_ids[0])

@@ -18,6 +18,7 @@ clip_len：一段视频中沿着时间轴截取一段视频片段，截取视频
 slow_tao：SlowFast Networks中slowpath的时间维度采样步长  
 alph：slowpath时间维度采样步长与fastpath时间维度采样步长的比值  
 is_group_conv：是否使用分组卷积  
+width_factor：整数类型,取值范围[0,3]，网络宽度缩放因子，宽度缩小为原来的0.5 ** width_factor倍  
 class_names：视频类别名称列表  
 num_workers：加载数据线程数目  
 epoch：训练轮数  

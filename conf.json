@@ -1,9 +1,10 @@
 {
   "common": {
     "clip_len": 16,
-    "slow_tao": 16,
-    "alpha": 8,
+    "slow_tao": 8,
+    "alpha": 4,
     "is_group_conv": true,
+    "width_factor": 3,
     "class_names": ["ApplyEyeMakeup", "ApplyLipstick", "Archery"],
     "num_workers": 4
   },
@@ -31,6 +32,6 @@
     "use_best_model": true,
     "show_video": true,
     "predict_camera_frame_count": 20,
-    "use_camera": false
+    "use_camera": true
   }
 }
