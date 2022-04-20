@@ -31,8 +31,8 @@ show_video = predict_conf["show_video"]
 use_camera = predict_conf["use_camera"]  # 是否使用摄像头实时预测
 predict_camera_frame_count = predict_conf["predict_camera_frame_count"]  # 使用相机实时预测时帧采样时间滑动窗口长度
 if use_camera:
-    clip_count = int(np.ceil(clip_count / 5))
-    crop_times = int(np.ceil(crop_times / 5))
+    clip_count = int(np.ceil(clip_count / 3))
+    crop_times = int(np.ceil(crop_times / 3))
     show_video = False
 num_classes = len(class_names)
 softmax_op = nn.Softmax(dim=1)
